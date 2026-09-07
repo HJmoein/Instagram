@@ -18,6 +18,7 @@ from src.services.captions import save_caption
 logger = logging.getLogger(__name__)
 MAX_VIDEO_CAPTION_LENGTH = 900
 MAX_TELEGRAM_CAPTION_LENGTH = 1024
+DOWNLOAD_STICKER_PATH = Path(__file__).resolve().parents[2] / "AnimatedSticker.tgs"
 
 
 class MediaService:
@@ -26,62 +27,48 @@ class MediaService:
         self.downloader = downloader
         self.repository = repository
 
-    async def process(self, job: DownloadJob, status_message) -> None:
-        await status_message.edit_text(self._progress_text(0))
-        loop = asyncio.get_running_loop()
-        progress_futures = []
-        last_percent = -2
+    async def send_download_sticker(self, chat_id: int):
+        if not DOWNLOAD_STICKER_PATH.is_file():
+            raise FileNotFoundError(f"Download sticker not found: {DOWNLOAD_STICKER_PATH}")
+        return await self.bot.send_sticker(chat_id, FSInputFile(DOWNLOAD_STICKER_PATH))
 
-        async def update_status(percent: int) -> None:
-            try:
-                await status_message.edit_text(self._progress_text(percent))
-            except TelegramAPIError:
-                logger.debug("Could not update download progress for user %s", job.user_id)
-
-        def on_progress(progress: float) -> None:
-            nonlocal last_percent
-            percent = min(100, int(progress))
-            if percent < 100 and percent - last_percent < 2:
-                return
-            last_percent = percent
-            progress_futures.append(
-                asyncio.run_coroutine_threadsafe(update_status(percent), loop)
-            )
-
+    async def process(self, job: DownloadJob, chat_id: int, status_sticker=None) -> None:
         try:
-            result, directory = await self.downloader.download(job.url, progress_callback=on_progress)
-            await asyncio.gather(
-                *(asyncio.wrap_future(future) for future in progress_futures),
-                return_exceptions=True,
-            )
-            await status_message.edit_text("✅ دانلود کامل شد\n\n📤 در حال ارسال فایل...")
+            if status_sticker is None:
+                status_sticker = await self.send_download_sticker(chat_id)
+            result, directory = await self.downloader.download(job.url)
             await self._send_result(job.user_id, result)
             self.repository.record(job.user_id, job.url, "success")
-            await status_message.delete()
         except DownloadError as exc:
             self.repository.record(job.user_id, job.url, "failed")
-            await status_message.edit_text(str(exc))
+            await self._send_error(chat_id, str(exc))
         except TelegramAPIError as exc:
             self.repository.record(job.user_id, job.url, "telegram_failed")
             logger.warning("Telegram rejected media for user %s: %s", job.user_id, exc)
-            await status_message.edit_text(
+            await self._send_error(
+                chat_id,
                 "فایل آماده شد، اما Telegram نتوانست آن را ارسال کند.\n"
                 "احتمالا حجم یا نوع فایل با محدودیت Telegram سازگار نیست."
             )
         except Exception:
             self.repository.record(job.user_id, job.url, "error")
             logger.exception("Failed to process media job")
-            await status_message.edit_text("یک خطای پیش‌بینی‌نشده رخ داد. لطفا کمی بعد دوباره تلاش کن.")
+            await self._send_error(
+                chat_id,
+                "یک خطای پیش‌بینی‌نشده رخ داد. لطفا کمی بعد دوباره تلاش کن.",
+            )
         finally:
+            if status_sticker:
+                try:
+                    await status_sticker.delete()
+                except TelegramAPIError:
+                    logger.debug("Could not delete download sticker")
             directory = locals().get("directory")
             if directory:
                 shutil.rmtree(directory, ignore_errors=True)
 
-    @staticmethod
-    def _progress_text(percent: int) -> str:
-        filled = percent // 5
-        bar = "█" * filled + "░" * (20 - filled)
-        return f"در حال دانلود...\n\n{bar} {percent}%\nلطفاً صبر کنید."
+    async def _send_error(self, chat_id: int, text: str) -> None:
+        await self.bot.send_message(chat_id, text)
 
     async def _send_result(self, user_id: int, result: DownloadResult) -> None:
         if len(result.files) == 1:

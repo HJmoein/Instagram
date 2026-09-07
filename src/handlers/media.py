@@ -16,10 +16,6 @@ ABOUT_TEXT = (
     "معرفی ربات\n\n"
     "با این ربات می‌توانی محتوای عمومی اینستاگرام، از جمله پست، ریلز، عکس، "
     "ویدیو و پست‌های چنداسلایدی را دانلود کنی.\n\n"
-    "ربات فقط محتوایی را پردازش می‌کند که عمومی و بدون نیاز به ورود قابل دسترسی باشد. "
-    "صفحه‌های خصوصی، محتوای حذف‌شده، موارد نیازمند ورود و CAPTCHA قابل دانلود نیستند.\n\n"
-    "این سرویس بدون دور زدن سازوکارهای امنیتی اینستاگرام کار می‌کند و فایل‌های موقت را "
-    "پس از پردازش پاک‌سازی می‌کند.\n\n"
     "اگه ضعیفه به کیرم ربات روی سرور قوی نیست که کصکش "
     "خوشت نمیاد برو یه جای دیگه"
 )
@@ -35,7 +31,7 @@ def about_keyboard() -> InlineKeyboardMarkup:
 async def start_handler(message: Message) -> None:
     await message.answer(
         "سلام، خوش آمدی. امیدوارم از ربات خوشت بیاد.\n\n"
-        "لینک عمومی Instagram را بفرست تا در صورت امکان عکس، ویدیو یا carousel آن را برایت آماده کنم.\n\n"
+        "لینک عمومی Instagram را بفرست تا در صورت امکان عکس، ویدیو را برایت آماده کنم.\n\n"
         "برای راهنما، /help را ارسال کن یا درباره ربات را ببین.",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="درباره ربات", callback_data="about_bot")]]
@@ -97,7 +93,7 @@ async def about_callback_handler(query: CallbackQuery) -> None:
     if query.data == "about_back":
         await query.message.edit_text(
             "سلام، خوش آمدی. امیدوارم از ربات خوشت بیاد.\n\n"
-            "لینک عمومی Instagram را بفرست تا در صورت امکان عکس، ویدیو یا carousel آن را برایت آماده کنم.",
+                "لینک عمومی Instagram را بفرست تا در صورت امکان عکس، ویدیو را برایت آماده کنم.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text="درباره ربات", callback_data="about_bot")]]
             ),

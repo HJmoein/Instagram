@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 from aiogram import Bot
@@ -89,7 +91,7 @@ class MediaService:
                 await self.bot.send_video(
                     user_id,
                     FSInputFile(item.path),
-                    reply_markup=self._caption_keyboard(caption_key),
+                    reply_markup=self._video_keyboard(caption_key),
                 )
             else:
                 await self.bot.send_photo(user_id, FSInputFile(item.path), caption=result.title[:900])
@@ -121,6 +123,57 @@ class MediaService:
     def _caption_keyboard(key: str) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{key}")]]
+        )
+
+    @staticmethod
+    def _video_keyboard(key: str) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{key}"),
+                    InlineKeyboardButton(text="🎙 تبدیل به ویس", callback_data="convert_to_voice"),
+                ]
+            ]
+        )
+
+    async def convert_video_to_voice(self, message) -> None:
+        if not message.video:
+            return
+
+        with tempfile.TemporaryDirectory(prefix="instagram_voice_") as temp_dir:
+            temp_path = Path(temp_dir)
+            video_path = temp_path / "video.mp4"
+            voice_path = temp_path / "voice.ogg"
+            telegram_file = await self.bot.get_file(message.video.file_id)
+            await self.bot.download_file(telegram_file.file_path, video_path)
+
+            import imageio_ffmpeg
+
+            await asyncio.to_thread(
+                self._extract_audio,
+                imageio_ffmpeg.get_ffmpeg_exe(),
+                video_path,
+                voice_path,
+            )
+            await self.bot.send_voice(message.chat.id, FSInputFile(voice_path))
+
+    @staticmethod
+    def _extract_audio(ffmpeg_path: str, video_path: Path, voice_path: Path) -> None:
+        subprocess.run(
+            [
+                ffmpeg_path,
+                "-y",
+                "-i",
+                str(video_path),
+                "-vn",
+                "-c:a",
+                "libopus",
+                "-b:a",
+                "128k",
+                str(voice_path),
+            ],
+            check=True,
+            capture_output=True,
         )
 
     @staticmethod

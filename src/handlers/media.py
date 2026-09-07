@@ -21,6 +21,17 @@ ABOUT_TEXT = (
 )
 
 
+def video_actions_keyboard(caption_key: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{caption_key}"),
+                InlineKeyboardButton(text="🎙 تبدیل به ویس", callback_data="convert_to_voice"),
+            ]
+        ]
+    )
+
+
 def about_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="بازگشت به شروع", callback_data="about_back")]]
@@ -70,12 +81,18 @@ async def caption_callback_handler(query: CallbackQuery) -> None:
     caption = get_caption(query.data.removeprefix("caption:"))
     if caption is None:
         if query.message.video:
-            await query.message.edit_caption(caption="این کپشن دیگر در دسترس نیست.")
+            await query.message.edit_caption(
+                caption="این کپشن دیگر در دسترس نیست.",
+                reply_markup=video_actions_keyboard(query.data.removeprefix("caption:")),
+            )
         else:
             await query.message.edit_text("این کپشن دیگر در دسترس نیست.")
         return
     if query.message.video:
-        await query.message.edit_caption(caption=caption[:1024])
+        await query.message.edit_caption(
+            caption=caption[:1024],
+            reply_markup=video_actions_keyboard(query.data.removeprefix("caption:")),
+        )
     else:
         await query.message.edit_text(caption[:4096])
 
@@ -103,6 +120,17 @@ async def about_callback_handler(query: CallbackQuery) -> None:
 
 
 def register_media_handler(queue: DownloadQueue, service: MediaService) -> None:
+    @router.callback_query(lambda query: query.data == "convert_to_voice")
+    async def convert_to_voice_handler(query: CallbackQuery) -> None:
+        await query.answer("در حال تبدیل ویدیو به ویس...")
+        if not query.message or not query.message.video:
+            return
+        try:
+            await service.convert_video_to_voice(query.message)
+        except Exception:
+            logger.exception("Failed to convert video to voice")
+            await query.message.answer("تبدیل ویدیو به ویس انجام نشد. لطفا دوباره تلاش کن.")
+
     @router.message()
     async def url_handler(message: Message) -> None:
         url = (message.text or "").strip()

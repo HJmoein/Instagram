@@ -5,6 +5,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from src.services.media import MediaService
+from src.services.captions import get_caption
 from src.services.queue import DownloadJob, DownloadQueue
 from src.utils.urls import is_instagram_url
 
@@ -42,6 +43,18 @@ async def start_handler(message: Message) -> None:
     )
 
 
+@router.message(Command("creator"))
+async def creator_handler(message: Message) -> None:
+    await message.answer(
+        "👤 سازنده ربات: من، معین هستم.\n\n"
+        "تاین ربات با عشق و زحمت ساخته شده تا استفاده از آن برات راحت باشه\n\n"
+        "پس از ربات استفاده کن و لذت ببر نیای بگی این چرا اینطوری اون اینطوری مشکل داری بکیرم  استفاده نکن\n",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="💬 ارتباط با سازنده", url="https://t.me/moein_915")]]
+        ),
+    )
+
+
 @router.message(Command("help"))
 async def help_handler(message: Message) -> None:
     await message.answer(
@@ -51,6 +64,18 @@ async def help_handler(message: Message) -> None:
         "3. فایل آماده‌شده در همین گفتگو ارسال می‌شود.\n\n"
         "لینک‌های خصوصی، حذف‌شده یا نیازمند ورود قابل پردازش نیستند."
     )
+
+
+@router.callback_query(lambda query: query.data and query.data.startswith("caption:"))
+async def caption_callback_handler(query: CallbackQuery) -> None:
+    await query.answer()
+    if not query.message or not query.data:
+        return
+    caption = get_caption(query.data.removeprefix("caption:"))
+    if caption is None:
+        await query.message.edit_text("این کپشن دیگر در دسترس نیست.")
+        return
+    await query.message.edit_text(caption[:4096])
 
 
 @router.message(Command("about"))

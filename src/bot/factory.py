@@ -1,4 +1,5 @@
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand
 
 from src.config.settings import Settings
 from src.database.repository import DownloadRepository
@@ -22,6 +23,12 @@ class Application:
     async def run(self) -> None:
         await self.queue.start()
         try:
+            await self.bot.set_my_commands(
+                [
+                    BotCommand(command="start", description="شروع کار با ربات"),
+                    BotCommand(command="creator", description="معرفی سازنده"),
+                ]
+            )
             await self.dispatcher.start_polling(self.bot)
         finally:
             await self.queue.stop()

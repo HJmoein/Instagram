@@ -3,7 +3,7 @@ import logging
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yt_dlp
 
@@ -22,10 +22,17 @@ class InstagramDownloader:
         self.settings = settings
         self.settings.temp_dir.mkdir(parents=True, exist_ok=True)
 
-    async def download(self, url: str) -> tuple[DownloadResult, Path]:
+    async def download(
+        self,
+        url: str,
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> tuple[DownloadResult, Path]:
         job_dir = Path(tempfile.mkdtemp(prefix="job-", dir=self.settings.temp_dir))
         try:
-            result = await asyncio.wait_for(asyncio.to_thread(self._download_sync, url, job_dir), self.settings.download_timeout_seconds)
+            result = await asyncio.wait_for(
+                asyncio.to_thread(self._download_sync, url, job_dir, progress_callback),
+                self.settings.download_timeout_seconds,
+            )
             return result, job_dir
         except asyncio.TimeoutError as exc:
             shutil.rmtree(job_dir, ignore_errors=True)
@@ -38,7 +45,12 @@ class InstagramDownloader:
             shutil.rmtree(job_dir, ignore_errors=True)
             raise DownloadError("دانلود انجام نشد؛ Instagram ممکن است محتوا را محدود کرده باشد.") from exc
 
-    def _download_sync(self, url: str, job_dir: Path) -> DownloadResult:
+    def _download_sync(
+        self,
+        url: str,
+        job_dir: Path,
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> DownloadResult:
         max_bytes = self.settings.max_file_size_mb * 1024 * 1024
         options: dict[str, Any] = {
             "outtmpl": str(job_dir / "%(title).80s-%(id)s.%(ext)s"),
@@ -54,6 +66,8 @@ class InstagramDownloader:
             "no_warnings": True,
             "cachedir": False,
         }
+        if progress_callback:
+            options["progress_hooks"] = [self._progress_hook(progress_callback)]
         try:
             with yt_dlp.YoutubeDL(options) as client:
                 info = client.extract_info(url, download=True)
@@ -83,3 +97,16 @@ class InstagramDownloader:
         if not files:
             raise DownloadError("فایل قابل ارسال از این لینک پیدا نشد.")
         return DownloadResult(files=files, title=title, extractor=info.get("extractor_key", "instagram"))
+
+    @staticmethod
+    def _progress_hook(progress_callback: Callable[[float], None]) -> Callable[[dict[str, Any]], None]:
+        def hook(data: dict[str, Any]) -> None:
+            if data.get("status") != "downloading":
+                return
+            total_bytes = data.get("total_bytes") or data.get("total_bytes_estimate")
+            downloaded_bytes = data.get("downloaded_bytes")
+            if not total_bytes or downloaded_bytes is None:
+                return
+            progress_callback(min(100.0, downloaded_bytes * 100 / total_bytes))
+
+        return hook

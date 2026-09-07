@@ -140,11 +140,11 @@ def register_media_handler(queue: DownloadQueue, service: MediaService) -> None:
                 "لطفا لینک کامل و عمومی Instagram را ارسال کن؛ مثلا لینک یک Post یا Reel."
             )
             return
-        status_sticker = await service.send_download_sticker(message.chat.id)
+        status = await message.answer("درخواستت ثبت شد؛ در حال دانلود...")
         job = DownloadJob(
             user_id=message.from_user.id if message.from_user else message.chat.id,
             url=url,
-            callback=lambda queued_job: service.process(queued_job, message.chat.id, status_sticker),
+            callback=lambda queued_job: service.process(queued_job, status),
         )
         await queue.put(job)
         logger.info("Queued Instagram URL from user %s; queue_size=%s", job.user_id, queue.size())

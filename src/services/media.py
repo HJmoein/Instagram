@@ -18,7 +18,7 @@ from src.services.captions import save_caption
 logger = logging.getLogger(__name__)
 MAX_VIDEO_CAPTION_LENGTH = 900
 MAX_TELEGRAM_CAPTION_LENGTH = 1024
-DOWNLOAD_STICKER_PATH = Path(__file__).resolve().parents[2] / "AnimatedSticker.tgs"
+BOT_USERNAME = "@InstasDL_bot"
 
 
 class MediaService:
@@ -27,61 +27,81 @@ class MediaService:
         self.downloader = downloader
         self.repository = repository
 
-    async def send_download_sticker(self, chat_id: int):
-        if not DOWNLOAD_STICKER_PATH.is_file():
-            raise FileNotFoundError(f"Download sticker not found: {DOWNLOAD_STICKER_PATH}")
-        return await self.bot.send_sticker(chat_id, FSInputFile(DOWNLOAD_STICKER_PATH))
+    async def process(self, job: DownloadJob, status_message) -> None:
+        await status_message.edit_text(self._progress_text(0))
+        loop = asyncio.get_running_loop()
+        progress_futures = []
+        last_percent = -2
 
-    async def process(self, job: DownloadJob, chat_id: int, status_sticker=None) -> None:
+        async def update_status(percent: int) -> None:
+            try:
+                await status_message.edit_text(self._progress_text(percent))
+            except TelegramAPIError:
+                logger.debug("Could not update download progress for user %s", job.user_id)
+
+        def on_progress(progress: float) -> None:
+            nonlocal last_percent
+            percent = min(100, int(progress))
+            if percent < 100 and percent - last_percent < 2:
+                return
+            last_percent = percent
+            progress_futures.append(
+                asyncio.run_coroutine_threadsafe(update_status(percent), loop)
+            )
+
         try:
-            if status_sticker is None:
-                status_sticker = await self.send_download_sticker(chat_id)
-            result, directory = await self.downloader.download(job.url)
+            result, directory = await self.downloader.download(job.url, progress_callback=on_progress)
+            await asyncio.gather(
+                *(asyncio.wrap_future(future) for future in progress_futures),
+                return_exceptions=True,
+            )
+            await status_message.edit_text("✅ دانلود کامل شد\n\n📤 در حال ارسال فایل...")
             await self._send_result(job.user_id, result)
             self.repository.record(job.user_id, job.url, "success")
+            await status_message.delete()
         except DownloadError as exc:
             self.repository.record(job.user_id, job.url, "failed")
-            await self._send_error(chat_id, str(exc))
+            await status_message.edit_text(str(exc))
         except TelegramAPIError as exc:
             self.repository.record(job.user_id, job.url, "telegram_failed")
             logger.warning("Telegram rejected media for user %s: %s", job.user_id, exc)
-            await self._send_error(
-                chat_id,
+            await status_message.edit_text(
                 "فایل آماده شد، اما Telegram نتوانست آن را ارسال کند.\n"
                 "احتمالا حجم یا نوع فایل با محدودیت Telegram سازگار نیست."
             )
         except Exception:
             self.repository.record(job.user_id, job.url, "error")
             logger.exception("Failed to process media job")
-            await self._send_error(
-                chat_id,
-                "یک خطای پیش‌بینی‌نشده رخ داد. لطفا کمی بعد دوباره تلاش کن.",
-            )
+            await status_message.edit_text("یک خطای پیش‌بینی‌نشده رخ داد. لطفا کمی بعد دوباره تلاش کن.")
         finally:
-            if status_sticker:
-                try:
-                    await status_sticker.delete()
-                except TelegramAPIError:
-                    logger.debug("Could not delete download sticker")
             directory = locals().get("directory")
             if directory:
                 shutil.rmtree(directory, ignore_errors=True)
 
-    async def _send_error(self, chat_id: int, text: str) -> None:
-        await self.bot.send_message(chat_id, text)
+    @staticmethod
+    def _progress_text(percent: int) -> str:
+        filled = percent // 5
+        bar = "█" * filled + "░" * (20 - filled)
+        return f"در حال دانلود...\n\n{bar} {percent}%\nلطفاً صبر کنید."
 
     async def _send_result(self, user_id: int, result: DownloadResult) -> None:
         if len(result.files) == 1:
             item = result.files[0]
             if item.kind is MediaKind.VIDEO:
-                caption_key = save_caption(self._shorten_caption(result.caption or result.title))
+                caption_key = save_caption(
+                    self._shorten_caption(self._with_bot_username(result.caption or result.title))
+                )
                 await self.bot.send_video(
                     user_id,
                     FSInputFile(item.path),
                     reply_markup=self._video_keyboard(caption_key),
                 )
             else:
-                await self.bot.send_photo(user_id, FSInputFile(item.path), caption=result.title[:900])
+                await self.bot.send_photo(
+                    user_id,
+                    FSInputFile(item.path),
+                    caption=self._with_bot_username(result.title, 900),
+                )
             return
         # Telegram media groups are limited to 10 items; send larger carousels in chunks.
         for start in range(0, len(result.files), 10):
@@ -91,15 +111,20 @@ class MediaService:
                 if item.kind is MediaKind.VIDEO:
                     media.append(InputMediaVideo(media=FSInputFile(item.path)))
                 else:
-                    media.append(InputMediaPhoto(media=FSInputFile(item.path), caption=result.title[:900] if start == 0 and index == 0 else None))
+                    media.append(
+                        InputMediaPhoto(
+                            media=FSInputFile(item.path),
+                            caption=self._with_bot_username(result.title, 900)
+                            if start == 0 and index == 0
+                            else None,
+                        )
+                    )
             await self.bot.send_media_group(user_id, media=media)
         if any(item.kind is MediaKind.VIDEO for item in result.files):
             await self._send_caption_button(user_id, result.caption or result.title)
 
     async def _send_caption_button(self, user_id: int, caption: str) -> None:
-        if not caption.strip():
-            return
-        key = save_caption(self._shorten_caption(caption))
+        key = save_caption(self._shorten_caption(self._with_bot_username(caption)))
         await self.bot.send_message(
             user_id,
             "برای دیدن کپشن کلیپ روی دکمه زیر بزن:",
@@ -169,3 +194,12 @@ class MediaService:
         if len(caption) <= MAX_TELEGRAM_CAPTION_LENGTH:
             return caption
         return caption[:MAX_TELEGRAM_CAPTION_LENGTH - 3].rstrip() + "..."
+
+    @staticmethod
+    def _with_bot_username(caption: str, limit: int = MAX_TELEGRAM_CAPTION_LENGTH) -> str:
+        suffix = f"\n\n{BOT_USERNAME}"
+        caption = caption.strip()
+        if len(caption) + len(suffix) <= limit:
+            return caption + suffix
+        available = max(0, limit - len(suffix))
+        return caption[:available].rstrip() + suffix

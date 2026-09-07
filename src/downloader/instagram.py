@@ -80,10 +80,12 @@ class InstagramDownloader:
         entries = info.get("entries") or [info]
         files: list[DownloadedFile] = []
         title = info.get("title") or "instagram-media"
+        caption = info.get("description") or title
         for entry in entries:
             if not entry:
                 continue
             entry_title = entry.get("title") or title
+            caption = entry.get("description") or caption
             requested = entry.get("requested_downloads") or []
             candidates = [Path(item["filepath"]) for item in requested if item.get("filepath")]
             candidates.extend(Path(path) for path in job_dir.glob("*") if Path(path).is_file())
@@ -96,7 +98,12 @@ class InstagramDownloader:
                 files.append(DownloadedFile(path=path, kind=kind, title=entry_title))
         if not files:
             raise DownloadError("فایل قابل ارسال از این لینک پیدا نشد.")
-        return DownloadResult(files=files, title=title, extractor=info.get("extractor_key", "instagram"))
+        return DownloadResult(
+            files=files,
+            title=title,
+            extractor=info.get("extractor_key", "instagram"),
+            caption=caption,
+        )
 
     @staticmethod
     def _progress_hook(progress_callback: Callable[[float], None]) -> Callable[[dict[str, Any]], None]:

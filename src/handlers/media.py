@@ -73,9 +73,15 @@ async def caption_callback_handler(query: CallbackQuery) -> None:
         return
     caption = get_caption(query.data.removeprefix("caption:"))
     if caption is None:
-        await query.message.edit_text("این کپشن دیگر در دسترس نیست.")
+        if query.message.video:
+            await query.message.edit_caption(caption="این کپشن دیگر در دسترس نیست.")
+        else:
+            await query.message.edit_text("این کپشن دیگر در دسترس نیست.")
         return
-    await query.message.edit_text(caption[:4096])
+    if query.message.video:
+        await query.message.edit_caption(caption=caption[:1024])
+    else:
+        await query.message.edit_text(caption[:4096])
 
 
 @router.message(Command("about"))

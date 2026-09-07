@@ -15,6 +15,7 @@ from src.services.captions import save_caption
 
 logger = logging.getLogger(__name__)
 MAX_VIDEO_CAPTION_LENGTH = 900
+MAX_TELEGRAM_CAPTION_LENGTH = 1024
 
 
 class MediaService:
@@ -84,8 +85,12 @@ class MediaService:
         if len(result.files) == 1:
             item = result.files[0]
             if item.kind is MediaKind.VIDEO:
-                await self.bot.send_video(user_id, FSInputFile(item.path))
-                await self._send_caption_button(user_id, result.title)
+                caption_key = save_caption(self._shorten_caption(result.caption or result.title))
+                await self.bot.send_video(
+                    user_id,
+                    FSInputFile(item.path),
+                    reply_markup=self._caption_keyboard(caption_key),
+                )
             else:
                 await self.bot.send_photo(user_id, FSInputFile(item.path), caption=result.title[:900])
             return
@@ -100,16 +105,27 @@ class MediaService:
                     media.append(InputMediaPhoto(media=FSInputFile(item.path), caption=result.title[:900] if start == 0 and index == 0 else None))
             await self.bot.send_media_group(user_id, media=media)
         if any(item.kind is MediaKind.VIDEO for item in result.files):
-            await self._send_caption_button(user_id, result.title)
+            await self._send_caption_button(user_id, result.caption or result.title)
 
     async def _send_caption_button(self, user_id: int, caption: str) -> None:
         if not caption.strip():
             return
-        key = save_caption(caption)
+        key = save_caption(self._shorten_caption(caption))
         await self.bot.send_message(
             user_id,
             "برای دیدن کپشن کلیپ روی دکمه زیر بزن:",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{key}")]]
-            ),
+            reply_markup=self._caption_keyboard(key),
         )
+
+    @staticmethod
+    def _caption_keyboard(key: str) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{key}")]]
+        )
+
+    @staticmethod
+    def _shorten_caption(caption: str) -> str:
+        caption = caption.strip()
+        if len(caption) <= MAX_TELEGRAM_CAPTION_LENGTH:
+            return caption
+        return caption[:MAX_TELEGRAM_CAPTION_LENGTH - 3].rstrip() + "..."

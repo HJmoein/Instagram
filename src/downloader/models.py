@@ -20,3 +20,4 @@ class DownloadResult:
     files: list[DownloadedFile]
     title: str
     extractor: str
+    caption: str = ""

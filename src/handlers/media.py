@@ -42,8 +42,8 @@ async def start_handler(message: Message) -> None:
 @router.message(Command("creator"))
 async def creator_handler(message: Message) -> None:
     await message.answer(
-        "👤 سازنده ربات: من، معین هستم.\n\n"
-        "تاین ربات با عشق و زحمت ساخته شده تا استفاده از آن برات راحت باشه\n\n"
+        "👤 سازنده ربات: من معین هستم\n\n"
+        "این ربات با عشق و زحمت ساخته شده تا استفاده از آن برات راحت باشه\n\n"
         "پس از ربات استفاده کن و لذت ببر نیای بگی این چرا اینطوری اون اینطوری مشکل داری بکیرم  استفاده نکن\n",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="💬 ارتباط با سازنده", url="https://t.me/moein_915")]]

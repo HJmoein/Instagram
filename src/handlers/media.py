@@ -7,7 +7,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from src.services.media import MediaService
 from src.services.captions import get_caption
 from src.services.queue import DownloadJob, DownloadQueue
-from src.utils.urls import is_instagram_url
+from src.utils.urls import normalize_instagram_url
 
 logger = logging.getLogger(__name__)
 router = Router(name="media")
@@ -133,8 +133,8 @@ def register_media_handler(queue: DownloadQueue, service: MediaService) -> None:
 
     @router.message()
     async def url_handler(message: Message) -> None:
-        url = (message.text or "").strip()
-        if not is_instagram_url(url):
+        url = normalize_instagram_url(message.text or "")
+        if url is None:
             await message.answer(
                 "این لینک قابل شناسایی نیست.\n\n"
                 "لطفا لینک کامل و عمومی Instagram را ارسال کن؛ مثلا لینک یک Post یا Reel."

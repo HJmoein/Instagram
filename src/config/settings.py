@@ -15,6 +15,8 @@ class Settings:
     download_timeout_seconds: int
     download_retries: int
     max_file_size_mb: int
+    cache_ttl_days: int
+    instagram_proxy: str | None
     temp_dir: Path
     database_path: Path
 
@@ -25,6 +27,7 @@ class Settings:
             raise ValueError("BOT_TOKEN is required in .env")
         temp_dir = Path(os.getenv("TEMP_DIR", "./tmp")).resolve()
         database_path = Path(os.getenv("DATABASE_PATH", "./data/bot.sqlite3")).resolve()
+        proxy = os.getenv("INSTAGRAM_PROXY", "").strip() or None
         return cls(
             bot_token=token,
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -32,6 +35,8 @@ class Settings:
             download_timeout_seconds=max(10, int(os.getenv("DOWNLOAD_TIMEOUT_SECONDS", "120"))),
             download_retries=max(0, int(os.getenv("DOWNLOAD_RETRIES", "2"))),
             max_file_size_mb=max(1, int(os.getenv("MAX_FILE_SIZE_MB", "49"))),
+            cache_ttl_days=max(1, int(os.getenv("CACHE_TTL_DAYS", "30"))),
+            instagram_proxy=proxy,
             temp_dir=temp_dir,
             database_path=database_path,
         )

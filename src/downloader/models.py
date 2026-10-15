@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
-from enum import StrEnum
+from enum import Enum
 
 
-class MediaKind(StrEnum):
+class MediaKind(str, Enum):
     IMAGE = "image"
     VIDEO = "video"
 
@@ -21,3 +21,16 @@ class DownloadResult:
     title: str
     extractor: str
     caption: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class CachedMedia:
+    file_id: str
+    kind: MediaKind
+
+
+@dataclass(frozen=True, slots=True)
+class CachedDownload:
+    files: list[CachedMedia]
+    title: str
+    caption: str

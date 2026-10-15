@@ -66,6 +66,8 @@ class InstagramDownloader:
             "no_warnings": True,
             "cachedir": False,
         }
+        if self.settings.instagram_proxy:
+            options["proxy"] = self.settings.instagram_proxy
         if progress_callback:
             options["progress_hooks"] = [self._progress_hook(progress_callback)]
         try:

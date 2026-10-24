@@ -258,7 +258,15 @@ class MediaService:
     @staticmethod
     def _caption_keyboard(key: str) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{key}")]]
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📝 نمایش کپشن",
+                        callback_data=f"caption:{key}",
+                        style="success",
+                    )
+                ]
+            ]
         )
 
     @staticmethod
@@ -266,8 +274,16 @@ class MediaService:
         return InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{key}"),
-                    InlineKeyboardButton(text="🎙 تبدیل به ویس", callback_data="convert_to_voice"),
+                    InlineKeyboardButton(
+                        text="📝 نمایش کپشن",
+                        callback_data=f"caption:{key}",
+                        style="success",
+                    ),
+                    InlineKeyboardButton(
+                        text="🎙 تبدیل به ویس",
+                        callback_data="convert_to_voice",
+                        style="primary",
+                    ),
                 ]
             ]
         )

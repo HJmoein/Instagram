@@ -25,8 +25,16 @@ def video_actions_keyboard(caption_key: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="📝 نمایش کپشن", callback_data=f"caption:{caption_key}"),
-                InlineKeyboardButton(text="🎙 تبدیل به ویس", callback_data="convert_to_voice"),
+                InlineKeyboardButton(
+                    text="📝 نمایش کپشن",
+                    callback_data=f"caption:{caption_key}",
+                    style="success",
+                ),
+                InlineKeyboardButton(
+                    text="🎙 تبدیل به ویس",
+                    callback_data="convert_to_voice",
+                    style="primary",
+                ),
             ]
         ]
     )

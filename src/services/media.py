@@ -68,7 +68,7 @@ class MediaService:
                 )
                 if cached:
                     try:
-                        await self._send_cached(job.user_id, cached)
+                        await self._send_cached(job.chat_id, cached)
                     except TelegramBadRequest as exc:
                         logger.warning("Cached Telegram media became unavailable: %s", exc)
                         await asyncio.to_thread(self.repository.delete_cached, job.url)
@@ -103,7 +103,7 @@ class MediaService:
                     return_exceptions=True,
                 )
                 await status_message.edit_text("✅ دانلود کامل شد\n\n📤 در حال ارسال فایل...")
-                files = await self._send_result(job.user_id, result)
+                files = await self._send_result(job.chat_id, result)
                 await self._save_cache(job.url, CachedDownload(files, result.title, result.caption))
                 await self._record(job, "success")
                 await status_message.delete()
@@ -143,7 +143,7 @@ class MediaService:
         bar = "█" * filled + "░" * (20 - filled)
         return f"در حال دانلود...\n\n{bar} {percent}%\nلطفاً صبر کنید."
 
-    async def _send_result(self, user_id: int, result: DownloadResult) -> list[CachedMedia]:
+    async def _send_result(self, chat_id: int, result: DownloadResult) -> list[CachedMedia]:
         if len(result.files) == 1:
             item = result.files[0]
             if item.kind is MediaKind.VIDEO:
@@ -151,7 +151,7 @@ class MediaService:
                     self._shorten_caption(self._with_bot_username(result.caption or result.title))
                 )
                 sent = await self.bot.send_video(
-                    user_id,
+                    chat_id,
                     FSInputFile(item.path),
                     reply_markup=self._video_keyboard(caption_key),
                 )
@@ -160,7 +160,7 @@ class MediaService:
                 return [CachedMedia(sent.video.file_id, MediaKind.VIDEO)]
             else:
                 sent = await self.bot.send_photo(
-                    user_id,
+                    chat_id,
                     FSInputFile(item.path),
                     caption=self._with_bot_username(result.title, 900),
                 )
@@ -184,15 +184,15 @@ class MediaService:
                             else None,
                         )
                     )
-            sent_messages = await self.bot.send_media_group(user_id, media=media)
+            sent_messages = await self.bot.send_media_group(chat_id, media=media)
             cached_files.extend(self._cached_media(message) for message in sent_messages)
         if any(item.kind is MediaKind.VIDEO for item in result.files):
-            await self._send_caption_button(user_id, result.caption or result.title)
+            await self._send_caption_button(chat_id, result.caption or result.title)
         if len(cached_files) != len(result.files):
             raise RuntimeError("Telegram returned an incomplete media group response.")
         return cached_files
 
-    async def _send_cached(self, user_id: int, cached: CachedDownload) -> None:
+    async def _send_cached(self, chat_id: int, cached: CachedDownload) -> None:
         if len(cached.files) == 1:
             item = cached.files[0]
             if item.kind is MediaKind.VIDEO:
@@ -200,13 +200,13 @@ class MediaService:
                     self._shorten_caption(self._with_bot_username(cached.caption or cached.title))
                 )
                 await self.bot.send_video(
-                    user_id,
+                    chat_id,
                     item.file_id,
                     reply_markup=self._video_keyboard(caption_key),
                 )
             else:
                 await self.bot.send_photo(
-                    user_id,
+                    chat_id,
                     item.file_id,
                     caption=self._with_bot_username(cached.title, 900),
                 )
@@ -225,9 +225,9 @@ class MediaService:
                     media.append(InputMediaVideo(media=item.file_id, caption=caption))
                 else:
                     media.append(InputMediaPhoto(media=item.file_id, caption=caption))
-            await self.bot.send_media_group(user_id, media=media)
+            await self.bot.send_media_group(chat_id, media=media)
         if any(item.kind is MediaKind.VIDEO for item in cached.files):
-            await self._send_caption_button(user_id, cached.caption or cached.title)
+            await self._send_caption_button(chat_id, cached.caption or cached.title)
 
     @staticmethod
     def _cached_media(message: Message) -> CachedMedia:
@@ -247,10 +247,10 @@ class MediaService:
             yield start, start + size
             start += size
 
-    async def _send_caption_button(self, user_id: int, caption: str) -> None:
+    async def _send_caption_button(self, chat_id: int, caption: str) -> None:
         key = save_caption(self._shorten_caption(self._with_bot_username(caption)))
         await self.bot.send_message(
-            user_id,
+            chat_id,
             "برای دیدن کپشن کلیپ روی دکمه زیر بزن:",
             reply_markup=self._caption_keyboard(key),
         )

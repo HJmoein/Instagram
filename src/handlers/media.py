@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import Router
+from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -36,6 +37,12 @@ def about_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="بازگشت به شروع", callback_data="about_back")]]
     )
+
+
+def should_process_message(chat_type: ChatType | str | None, text: str) -> bool:
+    if chat_type in {ChatType.GROUP, ChatType.SUPERGROUP, ChatType.CHANNEL}:
+        return normalize_instagram_url(text) is not None
+    return True
 
 
 @router.message(CommandStart())
@@ -133,16 +140,23 @@ def register_media_handler(queue: DownloadQueue, service: MediaService) -> None:
 
     @router.message()
     async def url_handler(message: Message) -> None:
-        url = normalize_instagram_url(message.text or "")
-        if url is None:
-            await message.answer(
-                "این لینک قابل شناسایی نیست.\n\n"
-                "لطفا لینک کامل و عمومی Instagram را ارسال کن؛ مثلا لینک یک Post یا Reel."
-            )
+        text = message.text or ""
+        if not should_process_message(message.chat.type, text):
             return
+
+        url = normalize_instagram_url(text)
+        if url is None:
+            if message.chat.type == ChatType.PRIVATE:
+                await message.answer(
+                    "این لینک قابل شناسایی نیست.\n\n"
+                    "لطفا لینک کامل و عمومی Instagram را ارسال کن؛ مثلا لینک یک Post یا Reel."
+                )
+            return
+
         status = await message.answer("درخواستت ثبت شد؛ در حال دانلود...")
         job = DownloadJob(
             user_id=message.from_user.id if message.from_user else message.chat.id,
+            chat_id=message.chat.id,
             url=url,
             callback=lambda queued_job: service.process(queued_job, status),
         )

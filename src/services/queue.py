@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 @dataclass(slots=True)
 class DownloadJob:
     user_id: int
+    chat_id: int
     url: str
     callback: Callable[["DownloadJob"], Awaitable[None]]
 

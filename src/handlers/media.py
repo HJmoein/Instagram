@@ -43,7 +43,15 @@ def video_actions_keyboard(caption_key: str) -> InlineKeyboardMarkup:
 
 def about_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="بازگشت به شروع", callback_data="about_back")]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="بازگشت به شروع",
+                    callback_data="about_back",
+                    style="primary",
+                )
+            ]
+        ]
     )
 
 
@@ -60,7 +68,15 @@ async def start_handler(message: Message) -> None:
         "لینک عمومی Instagram را بفرست تا در صورت امکان عکس، ویدیو را برایت آماده کنم.\n\n"
         "برای راهنما، /help را ارسال کن یا درباره ربات را ببین.",
         reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="درباره ربات", callback_data="about_bot")]]
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="درباره ربات",
+                        callback_data="about_bot",
+                        style="primary",
+                    )
+                ]
+            ]
         ),
     )
 
@@ -72,7 +88,15 @@ async def creator_handler(message: Message) -> None:
         "این ربات با عشق و زحمت ساخته شده تا استفاده از آن برات راحت باشه\n\n"
         "پس از ربات استفاده کن و لذت ببر نیای بگی این چرا اینطوری اون اینطوری مشکل داری بکیرم  استفاده نکن\n",
         reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="💬 ارتباط با سازنده", url="https://t.me/moein_915")]]
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="💬 ارتباط با سازنده",
+                        url="https://t.me/moein_915",
+                        style="primary",
+                    )
+                ]
+            ]
         ),
     )
 
@@ -127,7 +151,15 @@ async def about_callback_handler(query: CallbackQuery) -> None:
             "سلام، خوش آمدی. امیدوارم از ربات خوشت بیاد.\n\n"
                 "لینک عمومی Instagram را بفرست تا در صورت امکان عکس، ویدیو را برایت آماده کنم.",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="درباره ربات", callback_data="about_bot")]]
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="درباره ربات",
+                            callback_data="about_bot",
+                            style="primary",
+                        )
+                    ]
+                ]
             ),
         )
         return

@@ -99,7 +99,7 @@ class InstagramDownloader:
                 kind = MediaKind.VIDEO if path.suffix.lower() in {".mp4", ".mov", ".webm", ".mkv"} else MediaKind.IMAGE
                 files.append(DownloadedFile(path=path, kind=kind, title=entry_title))
         if not files:
-            raise DownloadError("فایل قابل ارسال از این لینک پیدا نشد.")
+            raise DownloadError("فایل قابل ارسال از این لینک پیدا نشد")
         return DownloadResult(
             files=files,
             title=title,

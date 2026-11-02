@@ -1,6 +1,6 @@
 import logging
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
@@ -61,7 +61,7 @@ def should_process_message(chat_type: ChatType | str | None, text: str) -> bool:
     return True
 
 
-@router.message(CommandStart())
+@router.message(CommandStart(), F.chat.type == ChatType.PRIVATE)
 async def start_handler(message: Message) -> None:
     await message.answer(
         "سلام، خوش آمدی. امیدوارم از ربات خوشت بیاد.\n\n"
@@ -81,7 +81,7 @@ async def start_handler(message: Message) -> None:
     )
 
 
-@router.message(Command("creator"))
+@router.message(Command("creator"), F.chat.type == ChatType.PRIVATE)
 async def creator_handler(message: Message) -> None:
     await message.answer(
         "👤 سازنده ربات: من معین هستم\n\n"
@@ -101,7 +101,7 @@ async def creator_handler(message: Message) -> None:
     )
 
 
-@router.message(Command("help"))
+@router.message(Command("help"), F.chat.type == ChatType.PRIVATE)
 async def help_handler(message: Message) -> None:
     await message.answer(
         "راهنمای ربات\n\n"
@@ -136,7 +136,7 @@ async def caption_callback_handler(query: CallbackQuery) -> None:
         await query.message.edit_text(caption[:4096])
 
 
-@router.message(Command("about"))
+@router.message(Command("about"), F.chat.type == ChatType.PRIVATE)
 async def about_command_handler(message: Message) -> None:
     await message.answer(ABOUT_TEXT, reply_markup=about_keyboard())
 

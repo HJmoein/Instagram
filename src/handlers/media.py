@@ -48,7 +48,6 @@ def about_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="بازگشت به شروع",
                     callback_data="about_back",
-                    style="primary",
                 )
             ]
         ]
@@ -73,7 +72,6 @@ async def start_handler(message: Message) -> None:
                     InlineKeyboardButton(
                         text="درباره ربات",
                         callback_data="about_bot",
-                        style="primary",
                     )
                 ]
             ]
@@ -93,7 +91,6 @@ async def creator_handler(message: Message) -> None:
                     InlineKeyboardButton(
                         text="💬 ارتباط با سازنده",
                         url="https://t.me/moein_915",
-                        style="primary",
                     )
                 ]
             ]
@@ -156,7 +153,6 @@ async def about_callback_handler(query: CallbackQuery) -> None:
                         InlineKeyboardButton(
                             text="درباره ربات",
                             callback_data="about_bot",
-                            style="primary",
                         )
                     ]
                 ]
